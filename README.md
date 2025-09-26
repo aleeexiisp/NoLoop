@@ -60,8 +60,7 @@ The server will start at **http://localhost:3000**
 
 | Method | Endpoint     | Description         |
 |-------|--------------|-------------------|
-| POST  | `/users`     | Create a new user |
-| POST  | `/login`     | Authenticate and get token *(coming soon)* |
+| POST  | `/users`     | TO DO |
 
 ---
 
@@ -76,6 +75,70 @@ backend/
  │         └── users.ts   # User routes (create user)
  ├── breakloop.db         # SQLite database file
  └── package.json
+```
+
+---
+
+## 🛠️ Request Flow
+
+
+```mermaid
+
+sequenceDiagram
+  participant C as Client (RN/Web)
+  participant H as HTTP (Express)
+  participant M as JWT Middleware
+  participant V as Zod Validator
+  participant U as UseCase: createJournalEntry
+  participant R as JournalRepo.drizzle
+  participant DB as SQLite
+
+  C->>H: POST /api/v1/journal {date, content}
+  H->>M: Verify JWT
+  M-->>H: OK (req.user)
+  H->>V: Validate body
+  V-->>H: Valid data
+  H->>U: run({ userId, date, content })
+  U->>R: create({ userId, date, content })
+  R->>DB: INSERT journal
+  DB-->>R: Row { id, ... }
+  R-->>U: Created entity
+  U-->>H: Result
+  H-->>C: 201 { id, date, content, ... }
+```
+
+---
+
+## 🛠️ Diagrama de capas
+
+```mermaid
+stateDiagram-v2
+  [*] --> Presentation
+  Presentation: Presentation Layer
+  Presentation --> Application: Validación + DTOs
+  Presentation --> Errors: Manejo de errores
+  Presentation --> Auth: JWT middleware
+
+  Application: Application Layer (Use Cases)
+  Application --> AdaptersDB: JournalRepo • WeekPlanRepo • BrainDumpRepo
+  Application --> AdaptersAI: AiOrganizerPort
+  Application --> Domain: Entidades & Reglas
+
+  AdaptersDB: Adapters DB (Drizzle + better-sqlite3)
+  AdaptersAI: Adapters AI (OpenAI u otros)
+
+  Domain: Domain (puro TS, sin frameworks)
+
+  Infra: Infra Layer (server.ts, db.ts, config)
+  Infra --> Presentation
+  Infra --> AdaptersDB
+
+  Errors: Error Handler
+  Auth: JWT
+
+  Domain --> [*]
+
+
 ```
 
 ---
@@ -126,4 +189,3 @@ If you have ideas to make NoLoop even more mindful and effective, feel free to o
 If you believe in helping people find focus and clarity, consider buying me a coffe!
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/alexisp)
-
