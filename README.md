@@ -83,7 +83,7 @@ backend/
 ## 🎯 Roadmap
 
 - [x] Setup SQLite + Express + TypeScript
-- [x] Basic user creation endpoint
+- [ ] Basic user creation endpoint
 - [ ] JWT authentication + login endpoint
 - [ ] Week organizer feature
 - [ ] BrainDump feature
@@ -117,7 +117,7 @@ If you have ideas to make NoLoop even more mindful and effective, feel free to o
 
 ## 📜 License
 
-[MIT](./LICENSE)
+[GNU GPLv3](./LICENSE)
 
 ---
 
