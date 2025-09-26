@@ -123,5 +123,7 @@ If you have ideas to make NoLoop even more mindful and effective, feel free to o
 
 ### ⭐ Support the Project
 
-If you believe in helping people find focus and clarity,  
-consider starring the repo ⭐ and sharing it with friends who need to **break the loop**.
+If you believe in helping people find focus and clarity, consider buying me a coffe!
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)]([https://www.buymeacoffee.com/gbraad](https://buymeacoffee.com/alexisp))
+
