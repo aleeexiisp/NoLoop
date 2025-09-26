@@ -125,5 +125,5 @@ If you have ideas to make NoLoop even more mindful and effective, feel free to o
 
 If you believe in helping people find focus and clarity, consider buying me a coffe!
 
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)]([https://www.buymeacoffee.com/gbraad](https://buymeacoffee.com/alexisp))
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/alexisp))
 
