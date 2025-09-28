@@ -63,12 +63,13 @@ const NewPassSchema = z.object({
  *********************************/
 
 export type SafeUser = { id: string; username: string; createdAt: Date; updatedAt: Date };
+const toDate = (v: unknown) => v instanceof Date ? v : new Date((v as number) * 1000);
 
 const rowToSafeUser = (row: any): SafeUser => ({
-  id: row.id,
-  username: row.username,
-  createdAt: new Date(row.createdAt * 1000), // epoch -> Date
-  updatedAt: new Date(row.updatedAt * 1000),
+    id: row.id,
+    username: row.username,
+    createdAt: toDate(row.createdAt),
+    updatedAt: toDate(row.updatedAt),
 });
 
 const nowSec = () => Math.floor(Date.now() / 1000);

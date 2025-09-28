@@ -96,7 +96,8 @@ app.post('/change-password', rateLimiter, requireAuth, async (req, res) => {
 
     await userRepository.changePassword({ userId, currentPassword, newPassword });
     await userRepository.revokeAllRefresh(req.user!.id)
-
+    clearAuthCookies(res);
+    
     return res.json({ ok: true, message: 'Password changed successfully, please login again.' });
   } catch (error) {
     return res.status(401).json({ error: (error as any).message });
@@ -104,7 +105,7 @@ app.post('/change-password', rateLimiter, requireAuth, async (req, res) => {
 });
 
 
-app.post('/logout', rateLimiter, async (req, res) => {
+app.post('/auth/logout', rateLimiter, async (req, res) => {
   const rt = req.cookies?.refresh_token || req.body?.refresh_token;
   if (rt) await userRepository.revokeRefresh(rt);
 
