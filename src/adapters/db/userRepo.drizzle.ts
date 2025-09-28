@@ -2,11 +2,17 @@ import crypto from "node:crypto";
 import bcrypt from "bcrypt";
 import { eq } from "drizzle-orm";
 import { db } from "../../infra/db.js";
-import { users } from "./schema.js";
+import { users, refreshTokens } from "./schema.js";
 import { sql } from "drizzle-orm";
 
 import { z } from "zod";
-import { SALT_ROUNDS } from "../../../config/config.js";
+import { REFRESH_TTL_SEC, SALT_ROUNDS } from "../../../config/config.js";
+
+/*********************************
+ * 
+ *      ZOD SCHEMA VALIDATIONS
+ * 
+ *********************************/
 
 // Schema de validación de username con zod
 const UsernameSchema = z
@@ -50,6 +56,12 @@ const NewPassSchema = z.object({
     newPassword: PasswordSchema
 });
 
+/*********************************
+ * 
+ *      HELPER FUNCTIONS
+ * 
+ *********************************/
+
 export type SafeUser = { id: string; username: string; createdAt: Date; updatedAt: Date };
 
 const rowToSafeUser = (row: any): SafeUser => ({
@@ -59,10 +71,25 @@ const rowToSafeUser = (row: any): SafeUser => ({
   updatedAt: new Date(row.updatedAt * 1000),
 });
 
+const nowSec = () => Math.floor(Date.now() / 1000);
+
+/*********************************
+ * 
+ *      CLASS / REPOSITORY
+ * 
+ *********************************/
+
 export interface UserRepository {
-  create(input: z.input<typeof RegisterSchema>): Promise<string>;
-  login(input: z.input<typeof LoginSchema>): Promise<{ id: string; username: string }>;
-  changePassword(input: z.input<typeof NewPassSchema>): Promise<void>;
+    // Gestión de usuarios
+    create(input: z.input<typeof RegisterSchema>): Promise<string>;
+    login(input: z.input<typeof LoginSchema>): Promise<{ id: string; username: string }>;
+    changePassword(input: z.input<typeof NewPassSchema>): Promise<void>;
+
+    // Gestión de refresh tokens
+    issueRefresh(userId: string): Promise<{ jti: string; token: string; expiresAt: number }>;
+    rotateRefresh(oldToken: string): Promise<{ jti: string; token: string; expiresAt: number }>;
+    revokeRefresh(tokenOrJti: string): Promise<void>;
+    revokeAllRefresh(userId: string): Promise<void>;
 }
 
 export const userRepository = {
@@ -126,5 +153,81 @@ export const userRepository = {
                 updatedAt: sql`(unixepoch())`,
             })
             .where(eq(users.id, userId));
+    },
+    async issueRefresh(userId: string): Promise<{ jti: string; token: string; expiresAt: number }> {
+        // TTL dinámico por llamada
+        const expSec = nowSec() + Number(REFRESH_TTL_SEC);
+
+        const jti = crypto.randomUUID();
+        const secret = crypto.randomBytes(32).toString("hex");
+        const token = `${jti}.${secret}`;
+        const tokenHash = await bcrypt.hash(secret, Number(SALT_ROUNDS));
+
+        // Si en schema expiresAt es { mode:"timestamp" }, guarda Date:
+        const expiryDate = new Date(expSec * 1000);
+
+        await db.insert(refreshTokens).values({
+        jti,
+        userId,
+        tokenHash,
+        expiresAt: expiryDate, // Drizzle -> Date (timestamp)
+        });
+
+        // Devuelve epoch seconds para usar fácil en cookies
+        return { jti, token, expiresAt: expSec };
+    },
+
+    async rotateRefresh(oldToken: string): Promise<{
+        user: { id: string; username: string },
+        refresh: { token: string; expiresAt: number }
+    }> {
+        const parts = oldToken.split(".");
+        if (parts.length !== 2) {
+        const e: any = new Error("Invalid refresh token");
+        e.statusCode = 400; throw e;
+        }
+        const [jti, secret] = parts as [string, string];
+
+        const row = await db.query.refreshTokens.findFirst({
+        where: eq(refreshTokens.jti, jti),
+        });
+        // row.expiresAt es Date si tu schema usa { mode:"timestamp" }
+        if (!row || row.revoked || row.expiresAt <= new Date()) {
+        const e: any = new Error("Invalid or expired refresh");
+        e.statusCode = 401; throw e;
+        }
+
+        const ok = await bcrypt.compare(secret, row.tokenHash);
+        if (!ok) {
+        const e: any = new Error("Invalid refresh token");
+        e.statusCode = 401; throw e;
+        }
+
+        // Revoca el viejo
+        await db.update(refreshTokens)
+        .set({ revoked: 1 })
+        .where(eq(refreshTokens.jti, jti));
+
+        // Crea el nuevo y obtén sus datos
+        const { token, expiresAt } = await this.issueRefresh(row.userId);
+
+        // Carga usuario para firmar access en server (sin que server toque DB)
+        const u = await db.query.users.findFirst({ where: eq(users.id, row.userId) });
+        if (!u) { const e: any = new Error("User not found"); e.statusCode = 404; throw e; }
+
+        return { user: { id: u.id, username: u.username }, refresh: { token, expiresAt } };
+    },
+
+    async revokeRefresh(tokenOrJti: string): Promise<void> {
+        const jti = tokenOrJti.includes(".") ? tokenOrJti.split(".")[0] : tokenOrJti;
+        await db.update(refreshTokens)
+        .set({ revoked: 1 })
+        .where(eq(refreshTokens.jti, jti as string));
+    },
+
+    async revokeAllRefresh(userId: string): Promise<void> {
+        await db.update(refreshTokens)
+        .set({ revoked: 1 })
+        .where(eq(refreshTokens.userId, userId));
     },
 };
