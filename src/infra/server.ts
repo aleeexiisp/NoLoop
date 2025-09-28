@@ -5,7 +5,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 
 import { PORT, SECRET_JWT_KEY } from './config.js';
-import { userRepository } from '../adapters/db/userRepo.js';
+import { userRepository } from '../adapters/db/userRepo.drizzle.js';
 
 declare global {
   namespace Express {
@@ -51,7 +51,7 @@ app.post('/login', async(req, res) => {
   try {
     const user = await userRepository.login({ username, password });
     const token = jwt.sign(
-      { id: user._id, username: user.username }, 
+      { id: user.id, username: user.username }, 
       SECRET_JWT_KEY, 
       { 
         expiresIn: '1h' 
