@@ -148,7 +148,3 @@ vite.config.ts.timestamp-*
 drizzle/
 drizzle.config.ts
 drizzle.config.js
-
-# Config sensitive files
-src/infra/config.ts
-src/infra/config.js
