@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 
-import { PORT, SECRET_JWT_KEY } from './config.js';
+import { PORT, SECRET_JWT_KEY } from '../../config/config.js';
 import { userRepository } from '../adapters/db/userRepo.drizzle.js';
 
 declare global {

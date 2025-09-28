@@ -4,7 +4,7 @@ import DBLocal from 'db-local';
 import { z } from 'zod';
 import bcrypt from 'bcrypt';
 
-import { SALT_ROUNDS } from '../../infra/config.js';
+import { SALT_ROUNDS } from '../../../config/config.js';
 const { Schema } = new DBLocal({ path: './db'});
 
 // Validación y normalización de username + password con Zod

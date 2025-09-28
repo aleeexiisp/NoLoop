@@ -5,7 +5,7 @@ import { db } from "../../infra/db.js";
 import { users } from "./schema.js";
 
 import { z } from "zod";
-import { SALT_ROUNDS } from "../../infra/config.js";
+import { SALT_ROUNDS } from "../../../config/config.js";
 
 // Schema de validación de username con zod
 const UsernameSchema = z
