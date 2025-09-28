@@ -1,0 +1,54 @@
+{
+  "name": "noloop",
+  "version": "0.1.0",
+  "description": "NoLoop is an interactive application built to enhance your wellbeing and productivity.  \r Our goal is simple: **help you break the loop**, organize your thoughts, and reconnect with yourself.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/infra/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/infra/server.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aleeexiisp/NoLoop.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/aleeexiisp/NoLoop/issues"
+  },
+  "homepage": "https://github.com/aleeexiisp/NoLoop#readme",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "^12.4.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "db-local": "^3.1.0",
+    "dotenv": "17.2.2",
+    "drizzle-orm": "^0.44.5",
+    "express": "5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "standard": "17.1.2",
+    "zod": "4.1.11"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/cors": "^2.8.19",
+    "@types/express": "5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "24.5.2",
+    "drizzle-kit": "^0.31.5",
+    "tsx": "4.20.6",
+    "typescript": "5.9.2"
+  },
+  "eslintConfig": {
+    "extends": "standard"
+  }
+}
