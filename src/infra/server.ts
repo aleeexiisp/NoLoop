@@ -23,7 +23,7 @@ declare global {
  * 
  ********************************/
 
-const app = express();
+export const app = express();
 
 app.use(helmet());
 app.use(cors({
@@ -51,7 +51,9 @@ app.get('/api/v1/me', requireAuth, (req, res) => res.json({ user: req.user }));
  * 
  ********************************/
 
-const rateLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
+const rateLimiter: express.RequestHandler = process.env.NODE_ENV === 'test'
+  ? (_req, _res, next) => next()
+  : rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
 
 app.get('/', (req, res) => {
   const user = req.user ?? null;
@@ -157,6 +159,8 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   res.status(status).json({ error: err?.message ?? 'Internal Server Error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`[noloop] listening on http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`[noloop] listening on http://localhost:${PORT}`);
+  });
+}
