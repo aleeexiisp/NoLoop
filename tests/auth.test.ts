@@ -202,6 +202,36 @@ describe('User repository authentication flow', () => {
     assert.strictEqual(old.revoked, 1);
   });
 
+  it('detects refresh token reuse and invalidates the entire family', async () => {
+    const username = 'user_repo_reuse';
+    const id = await userRepository.create({ username, password: strongPassword });
+
+    const { token } = await userRepository.issueRefresh(id);
+
+    const [first, second] = await Promise.allSettled([
+      userRepository.rotateRefresh(token),
+      userRepository.rotateRefresh(token),
+    ]);
+
+    let success: any;
+    let failure: unknown;
+    for (const outcome of [first, second]) {
+      if (outcome.status === 'fulfilled') success = outcome.value;
+      else failure = outcome.reason;
+    }
+
+    assert.ok(success);
+    assert.ok(failure instanceof Error);
+    assert.match((failure as Error).message, /reuse/i);
+
+    const reuseAttempt = success.refresh.token;
+    await assert.rejects(userRepository.rotateRefresh(reuseAttempt), /reuse|invalid/i);
+
+    const stored = sqlite.prepare('SELECT revoked FROM refresh_tokens WHERE user_id = ?').all(id) as Array<{ revoked: number }>;
+    assert.ok(stored.length >= 2);
+    assert.ok(stored.every((row) => row.revoked === 1));
+  });
+
   it('revokes refresh tokens individually and in bulk', async () => {
     const username = 'user_repo_4';
     const id = await userRepository.create({ username, password: strongPassword });
@@ -380,6 +410,34 @@ describe('HTTP authentication endpoints', () => {
       body: JSON.stringify({ username, password: 'BrandNew#12345' }),
     });
     assert.strictEqual(newLogin.status, 200);
+  });
+
+  it('sets authentication cookies with the expected attributes in development', async () => {
+    const client = new TestClient(baseUrl);
+    const username = 'http_cookie_1';
+
+    await client.request('/register', { json: { username, password: strongPassword } });
+    const login = await client.request('/login', { json: { username, password: strongPassword } });
+
+    const accessCookie = login.cookies.find((cookie) => cookie.startsWith('access_token='));
+    const refreshCookie = login.cookies.find((cookie) => cookie.startsWith('refresh_token='));
+
+    assert.ok(accessCookie, 'access cookie should be set');
+    assert.ok(refreshCookie, 'refresh cookie should be set');
+
+    assert.ok(accessCookie!.includes('HttpOnly'));
+    assert.ok(accessCookie!.includes('SameSite=Lax'));
+    assert.ok(accessCookie!.includes('Path=/'));
+    assert.match(accessCookie!, /Max-Age=\d+/);
+    assert.ok(!accessCookie!.includes('Secure'));
+    assert.ok(!accessCookie!.includes('Domain='));
+
+    assert.ok(refreshCookie!.includes('HttpOnly'));
+    assert.ok(refreshCookie!.includes('SameSite=Lax'));
+    assert.ok(refreshCookie!.includes('Path=/auth'));
+    assert.match(refreshCookie!, /Max-Age=\d+/);
+    assert.ok(!refreshCookie!.includes('Secure'));
+    assert.ok(!refreshCookie!.includes('Domain='));
   });
 
   it('rejects forged access tokens', async () => {

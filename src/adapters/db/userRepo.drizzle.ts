@@ -1,12 +1,30 @@
 import crypto from "node:crypto";
 import bcrypt from "bcrypt";
 import { eq } from "drizzle-orm";
-import { db } from "../../infra/db.js";
+import { db, sqlite } from "../../infra/db.js";
 import { users, refreshTokens } from "./schema.js";
 import { sql } from "drizzle-orm";
 
 import { z } from "zod";
 import { REFRESH_TTL_SEC, SALT_ROUNDS } from "../../../config/config.js";
+
+const reuseDetectionFlags = new Map<string, NodeJS.Timeout>();
+
+function flagReuse(userId: string) {
+    const existing = reuseDetectionFlags.get(userId);
+    if (existing) clearTimeout(existing);
+    reuseDetectionFlags.set(userId, setTimeout(() => {
+        reuseDetectionFlags.delete(userId);
+    }, 1000));
+}
+
+function consumeReuseFlag(userId: string): boolean {
+    const timeout = reuseDetectionFlags.get(userId);
+    if (!timeout) return false;
+    clearTimeout(timeout);
+    reuseDetectionFlags.delete(userId);
+    return true;
+}
 
 /*********************************
  * 
@@ -193,7 +211,22 @@ export const userRepository = {
         where: eq(refreshTokens.jti, jti),
         });
         // row.expiresAt es Date si tu schema usa { mode:"timestamp" }
-        if (!row || row.revoked || row.expiresAt <= new Date()) {
+        if (!row) {
+        const e: any = new Error("Invalid or expired refresh");
+        e.statusCode = 401; throw e;
+        }
+
+        if (row.revoked) {
+        flagReuse(row.userId);
+        await this.revokeAllRefresh(row.userId);
+        const e: any = new Error("Refresh token reuse detected");
+        e.statusCode = 401; throw e;
+        }
+
+        if (row.expiresAt <= new Date()) {
+        await db.update(refreshTokens)
+            .set({ revoked: 1 })
+            .where(eq(refreshTokens.jti, jti));
         const e: any = new Error("Invalid or expired refresh");
         e.statusCode = 401; throw e;
         }
@@ -204,13 +237,24 @@ export const userRepository = {
         e.statusCode = 401; throw e;
         }
 
-        // Revoca el viejo
-        await db.update(refreshTokens)
-        .set({ revoked: 1 })
-        .where(eq(refreshTokens.jti, jti));
+        // Revoca el viejo solo si seguía activo. Si no se modificó, es reuse.
+        const result = sqlite.prepare("UPDATE refresh_tokens SET revoked = 1 WHERE jti = ? AND revoked = 0").run(jti);
+        if (result.changes === 0) {
+        flagReuse(row.userId);
+        await this.revokeAllRefresh(row.userId);
+        const e: any = new Error("Refresh token reuse detected");
+        e.statusCode = 401; throw e;
+        }
 
         // Crea el nuevo y obtén sus datos
-        const { token, expiresAt } = await this.issueRefresh(row.userId);
+        const { token, expiresAt, jti: newJti } = await this.issueRefresh(row.userId);
+
+        await new Promise(resolve => setImmediate(resolve));
+        if (consumeReuseFlag(row.userId)) {
+        await db.update(refreshTokens)
+            .set({ revoked: 1 })
+            .where(eq(refreshTokens.jti, newJti));
+        }
 
         // Carga usuario para firmar access en server (sin que server toque DB)
         const u = await db.query.users.findFirst({ where: eq(users.id, row.userId) });
