@@ -11,7 +11,7 @@
     "db:generate": "drizzle-kit generate --config=./config/drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=./config/drizzle.config.ts",
     "db:studio": "drizzle-kit studio --config=./config/drizzle.config.ts",
-    "test": "NODE_ENV=test SQLITE_PATH=:memory: SALT_ROUNDS=4 SECRET_JWT_KEY=test-secret REFRESH_TTL_SEC=7200 ACCESS_EXPIRES_IN=15m node --test --import tsx ./tests/**/*.test.ts"
+    "test": "set NODE_ENV=test&& set SQLITE_PATH=:memory:&& set SALT_ROUNDS=4&& set SECRET_JWT_KEY=test-secret&& set REFRESH_TTL_SEC=7200&& set ACCESS_EXPIRES_IN=15m&& node --test --import tsx \"tests/**/*.test.ts\""
   },
   "repository": {
     "type": "git",
